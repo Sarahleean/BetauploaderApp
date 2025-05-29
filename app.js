@@ -12,7 +12,7 @@ app.use(express.urlencoded({ extended: true }));
 const upload = multer({ dest: 'uploads/' });
 
 const dbx = new Dropbox({
-  accessToken: 'YOUR_LONG_LIVED_ACCESS_TOKEN',
+  accessToken: 'P6SxvwI4BIUAAAAAAAAAH8yDMapC2VUEamSvnT7kJ98',
 });
 
 const counterFile = 'textFileCounter.json';
