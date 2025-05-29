@@ -11,9 +11,15 @@ app.use(express.urlencoded({ extended: true }));
 
 const upload = multer({ dest: 'uploads/' });
 
-const dbx = new Dropbox({});
+const dbx = new Dropbox({
+  accessToken: 'P6SxvwI4BIUAAAAAAAAAH8yDMapC2VUEamSvnT7kJ98',
+  // clientId: appKey,
+  // clientSecret: appSecret,
+  // refreshToken: refreshToken,
+});
 
 let accessToken = null;
+let refreshToken = null;
 
 const MydropboxAppKey = '72k4rjgio5xik7f';
 const MydropboxAppSecret = '5qkialtd2pmpu4y';
@@ -39,7 +45,8 @@ function incrementTextFileCounter() {
 async function getAccessToken() {
   try {
     const response = await axios.post('https://api.dropboxapi.com/oauth2/token', {
-      grant_type: 'client_credentials',
+      refresh_token: refreshToken,
+      grant_type: 'refresh_token',
       client_id: MydropboxAppKey,
       client_secret: MydropboxAppSecret,
     }, {
@@ -56,13 +63,44 @@ async function getAccessToken() {
     accessToken = response.data.access_token;
     dbx.auth.setAccessToken(accessToken);
   } catch (error) {
-    console.error('Error generating access token:', error);
+      console.error('Error refreshing access token:', error);
+    }
+}
+
+async function initAccessToken(code) {
+  try {
+    const params = new URLSearchParams();
+    params.append('code', code);
+    params.append('grant_type', 'authorization_code');
+    params.append('client_id', MydropboxAppKey);
+    params.append('client_secret', MydropboxAppSecret);
+    params.append('redirect_uri', 'https://betauploaderapp.onrender.com/callback');
+
+    const response = await axios.post('https://api.dropboxapi.com/oauth2/token', params.toString(), {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+    });
+
+    accessToken = response.data.access_token;
+    refreshToken = response.data.refresh_token;
+    dbx.auth.setAccessToken(accessToken);
+  } catch (error) {
+    console.error('Error exchanging authorization code:', error);
   }
 }
 
-getAccessToken();
+// app.get('/auth', (req, res) => {
+//   const authUrl = `https://www.dropbox.com/oauth2/authorize?client_id=${MydropboxAppKey}&response_type=code&redirect_uri=http://localhost:3000/callback`;
+//   res.redirect(authUrl);
+// });
 
 app.get('/', (req, res) => {
+  const authUrl = `https://www.dropbox.com/oauth2/authorize?client_id=${MydropboxAppKey}&response_type=code&redirect_uri=https://betauploaderapp.onrender.com/callback`;
+  res.redirect(authUrl);
+});
+
+app.get('/home', (req, res) => {
   fs.readFile('index.html', (err, data) => {
     if (err) {
       res.writeHead(404);
@@ -74,7 +112,28 @@ app.get('/', (req, res) => {
   });
 });
 
+app.get('/callback', async (req, res) => {
+  const code = req.query.code;
+  await initAccessToken(code);
+  res.redirect('/home');
+});
+
+
+app.use(express.static(__dirname));
+app.get('/callback', async (req, res) => {
+  const code = req.query.code;
+  await initAccessToken(code);
+  res.send('Authorized!');
+});
+
 app.post('/upload', upload.any(), async (req, res) => {
+  console.log(req.files);
+  console.log(req.body);
+  if (!accessToken) {
+    res.status(401).send('Not authorized');
+    return;
+  }
+
   try {
     req.files.forEach(async (file) => {
       const fileBuffer = fs.readFileSync(file.path);
