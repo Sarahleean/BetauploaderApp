@@ -73,7 +73,7 @@ async function initAccessToken(code) {
     params.append('grant_type', 'authorization_code');
     params.append('client_id', MydropboxAppKey);
     params.append('client_secret', MydropboxAppSecret);
-    params.append('redirect_uri', 'https://betauploaderapp.onrender.com/callback');
+    params.append('redirect_uri', 'https://betauploaderapp.onrender.com');
 
     const response = await axios.post('https://api.dropboxapi.com/oauth2/token', params.toString(), {
       headers: {
@@ -95,8 +95,15 @@ async function initAccessToken(code) {
 // });
 
 app.get('/', (req, res) => {
-  const authUrl = `https://www.dropbox.com/oauth2/authorize?client_id=${MydropboxAppKey}&response_type=code&redirect_uri=https://betauploaderapp.onrender.com/callback`;
-  res.redirect(authUrl);
+  fs.readFile('index.html', (err, data) => {
+    if (err) {
+      res.writeHead(404);
+      res.end('Error loading index.html');
+    } else {
+      res.writeHead(200, {'Content-Type': 'text/html'});
+      res.end(data);
+    }
+  });
 });
 
 
