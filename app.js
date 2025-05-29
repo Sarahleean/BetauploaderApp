@@ -89,9 +89,12 @@ async function initAccessToken(code) {
   }
 }
 
-app.get('/auth', (req, res) => {
-  const authUrl = `https://www.dropbox.com/oauth2/authorize?client_id=${MydropboxAppKey}&response_type=code&redirect_uri=http://localhost:3000/callback`;
-  res.redirect(authUrl);
+// app.get('/auth', (req, res) => {
+//   const authUrl = `https://www.dropbox.com/oauth2/authorize?client_id=${MydropboxAppKey}&response_type=code&redirect_uri=http://localhost:3000/callback`;
+//   res.redirect(authUrl);
+// });
+app.get('/', (req, res) => {
+  res.send('welcome to my app');
 });
 
 app.get('/callback', async (req, res) => {
