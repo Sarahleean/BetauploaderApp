@@ -73,7 +73,7 @@ async function initAccessToken(code) {
     params.append('grant_type', 'authorization_code');
     params.append('client_id', MydropboxAppKey);
     params.append('client_secret', MydropboxAppSecret);
-    params.append('redirect_uri', 'http://localhost:3000/callback');
+    params.append('redirect_uri', 'https://betauploaderapp.onrender.com');
 
     const response = await axios.post('https://api.dropboxapi.com/oauth2/token', params.toString(), {
       headers: {
