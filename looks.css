@@ -1,0 +1,49 @@
+* {
+    padding: 0;
+    margin: 0;
+    box-sizing: border-box;
+}
+
+#Upload_App {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 50px 20px 0;
+}
+
+.FileInputs {
+    background-color: hsl(0, 0%, 50%);
+    padding: 10px 10px 10px;
+    border-radius: 10px;
+    margin: 8px;
+}
+
+.textinput {
+    margin: 10px;
+    width: 80%;
+    border: 2px solid rgb(255, 115, 0);
+    outline: none;
+    font-size: 16px;
+    padding: 8px;
+    border-radius: 20px;
+    max-width: 200px;
+}
+
+#sendBTN {
+    padding: 8px 16px;
+    outline: none;
+    border: none;
+    background-color: rgb(255, 115, 0);
+    margin: 10px;
+    cursor: pointer;
+}
+
+#sendBTN:active {
+    scale: 110%;
+}
+
+/* #status {
+    background-color: blue;
+    height: 30px;
+    width: 200px;
+} */
