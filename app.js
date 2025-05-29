@@ -49,16 +49,28 @@ app.use(express.static(__dirname));
 
 app.post('/upload', upload.any(), async (req, res) => {
   try {
-    req.files.forEach(async (file) => {
-      const fileBuffer = fs.readFileSync(file.path);
-      await dbx.filesUpload({
-        path: `/Apps/File-Uploader2025/${file.originalname}`,
-        contents: fileBuffer,
-        mode: 'add',
-      });
+    console.log(req.files);
+    console.log(req.body);
 
-      console.log('File uploaded successfully');
-      fs.unlinkSync(file.path); // Remove the temporary file
+    if (!req.files) {
+      res.status(400).send('No files uploaded');
+      return;
+    }
+
+    req.files.forEach(async (file) => {
+      try {
+        const fileBuffer = fs.readFileSync(file.path);
+        await dbx.filesUpload({
+          path: `/Apps/File-Uploader2025/${file.originalname}`,
+          contents: fileBuffer,
+          mode: 'add',
+        });
+
+        console.log('File uploaded successfully');
+        fs.unlinkSync(file.path); // Remove the temporary file
+      } catch (error) {
+        console.error('Error uploading file:', error);
+      }
     });
 
     let textFileCounter = getTextFileCounter();
@@ -69,13 +81,17 @@ app.post('/upload', upload.any(), async (req, res) => {
       const textFileName = `/Apps/File-Uploader2025/text${textFileCounter}.txt`;
       console.log(`Uploading text file: ${textFileName}`);
 
-      await dbx.filesUpload({
-        path: textFileName,
-        contents: textBuffer,
-        mode: 'add',
-      });
+      try {
+        await dbx.filesUpload({
+          path: textFileName,
+          contents: textBuffer,
+          mode: 'add',
+        });
 
-      console.log('Text file uploaded successfully');
+        console.log('Text file uploaded successfully');
+      } catch (error) {
+        console.error('Error uploading text file:', error);
+      }
 
       textFileCounter++;
     }
