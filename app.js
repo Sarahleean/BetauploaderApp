@@ -106,6 +106,8 @@ app.get('/', (req, res) => {
   });
 });
 
+
+app.use(express.static(__dirname));
 app.get('/callback', async (req, res) => {
   const code = req.query.code;
   await initAccessToken(code);
