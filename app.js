@@ -93,8 +93,18 @@ async function initAccessToken(code) {
 //   const authUrl = `https://www.dropbox.com/oauth2/authorize?client_id=${MydropboxAppKey}&response_type=code&redirect_uri=http://localhost:3000/callback`;
 //   res.redirect(authUrl);
 // });
+const fs = require('fs');
+
 app.get('/', (req, res) => {
-  res.send('welcome to my app');
+  fs.readFile('index.html', (err, data) => {
+    if (err) {
+      res.writeHead(404);
+      res.end('Error loading index.html');
+    } else {
+      res.writeHead(200, {'Content-Type': 'text/html'});
+      res.end(data);
+    }
+  });
 });
 
 app.get('/callback', async (req, res) => {
