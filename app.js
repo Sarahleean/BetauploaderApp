@@ -95,15 +95,8 @@ async function initAccessToken(code) {
 // });
 
 app.get('/', (req, res) => {
-  fs.readFile('index.html', (err, data) => {
-    if (err) {
-      res.writeHead(404);
-      res.end('Error loading index.html');
-    } else {
-      res.writeHead(200, {'Content-Type': 'text/html'});
-      res.end(data);
-    }
-  });
+  const authUrl = `https://www.dropbox.com/oauth2/authorize?client_id=${MydropboxAppKey}&response_type=code&redirect_uri=https://betauploaderapp.onrender.com/callback`;
+  res.redirect(authUrl);
 });
 
 
