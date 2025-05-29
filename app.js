@@ -95,6 +95,11 @@ async function initAccessToken(code) {
 // });
 
 app.get('/', (req, res) => {
+  const authUrl = `https://www.dropbox.com/oauth2/authorize?client_id=${MydropboxAppKey}&response_type=code&redirect_uri=https://betauploaderapp.onrender.com/callback`;
+  res.redirect(authUrl);
+});
+
+app.get('/home', (req, res) => {
   fs.readFile('index.html', (err, data) => {
     if (err) {
       res.writeHead(404);
@@ -104,6 +109,12 @@ app.get('/', (req, res) => {
       res.end(data);
     }
   });
+});
+
+app.get('/callback', async (req, res) => {
+  const code = req.query.code;
+  await initAccessToken(code);
+  res.redirect('/home');
 });
 
 
