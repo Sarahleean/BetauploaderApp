@@ -93,7 +93,6 @@ async function initAccessToken(code) {
 //   const authUrl = `https://www.dropbox.com/oauth2/authorize?client_id=${MydropboxAppKey}&response_type=code&redirect_uri=http://localhost:3000/callback`;
 //   res.redirect(authUrl);
 // });
-const fs = require('fs');
 
 app.get('/', (req, res) => {
   fs.readFile('index.html', (err, data) => {
