@@ -13,14 +13,13 @@ const upload = multer({ dest: 'uploads/' });
 
 const MydropboxAppKey = '72k4rjgio5xik7f';
 const MydropboxAppSecret = '5qkialtd2pmpu4y';
-const authCode = 'P6SxvwI4BIUAAAAAAAAAMf5Wetxn6bqrg6p5a0Un71s';
-
 let accessToken = null;
+let refreshToken = null;
 let dbx = new Dropbox({});
 
 axios.post('https://api.dropboxapi.com/oauth2/token', {
   grant_type: 'authorization_code',
-  code: authCode,
+  code: 'P6SxvwI4BIUAAAAAAAAAMnJateorzMd-Lk_pLfqMpY8',
   client_id: MydropboxAppKey,
   client_secret: MydropboxAppSecret,
 }, {
@@ -35,9 +34,9 @@ axios.post('https://api.dropboxapi.com/oauth2/token', {
 })
 .then((response) => {
   accessToken = response.data.access_token;
+  refreshToken = response.data.refresh_token;
   dbx = new Dropbox({ accessToken });
 
-  // Rest of your code...
   const counterFile = 'textFileCounter.json';
 
   // Initialize the counter
@@ -93,6 +92,31 @@ axios.post('https://api.dropboxapi.com/oauth2/token', {
           fs.unlinkSync(file.path); // Remove the temporary file
         } catch (error) {
           console.error('Error uploading file:', error);
+          if (error.error && error.error.error && error.error.error == 'expired_access_token') {
+            // Refresh the access token
+            axios.post('https://api.dropboxapi.com/oauth2/token', {
+              grant_type: 'refresh_token',
+              refresh_token: refreshToken,
+              client_id: MydropboxAppKey,
+              client_secret: MydropboxAppSecret,
+            }, {
+              headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+              },
+              transformRequest: [(data) => {
+                return Object.keys(data).map((key) => {
+                  return `${key}=${data[key]}`;
+                }).join('&');
+              }],
+            })
+            .then((response) => {
+              accessToken = response.data.access_token;
+              dbx = new Dropbox({ accessToken });
+            })
+            .catch((error) => {
+              console.error('Error refreshing access token:', error);
+            });
+          }
         }
       });
 
