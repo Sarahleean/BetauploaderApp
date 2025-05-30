@@ -8,6 +8,7 @@ const cors = require('cors');
 const app = express();
 app.use(cors());
 app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
 
 const upload = multer({ dest: 'uploads/' });
 
@@ -47,7 +48,6 @@ app.get('/callback', async (req, res) => {
     dbx = new Dropbox({ accessToken });
 
     res.send('Access token obtained successfully!');
-    startServer();
   } catch (error) {
     console.error('Error exchanging authorization code:', error);
     res.status(500).send('Error exchanging authorization code');
@@ -79,121 +79,123 @@ const refreshAccessToken = async () => {
   }
 };
 
-const startServer = () => {
-  const counterFile = 'textFileCounter.json';
+let counterFile = 'textFileCounter.json';
 
-  // Initialize the counter
+function getTextFileCounter() {
   if (!fs.existsSync(counterFile)) {
     fs.writeFileSync(counterFile, JSON.stringify({ counter: 1 }));
   }
+  const data = fs.readFileSync(counterFile, 'utf8');
+  return JSON.parse(data).counter;
+}
 
-  function getTextFileCounter() {
-    const data = fs.readFileSync(counterFile, 'utf8');
-    return JSON.parse(data).counter;
+function incrementTextFileCounter() {
+  const counter = getTextFileCounter() + 1;
+  fs.writeFileSync(counterFile, JSON.stringify({ counter }));
+  return counter;
+}
+
+const uploadToDropbox = async (filePath, fileName, fileBuffer) => {
+  try {
+    await dbx.filesUpload({
+      path: `/Apps/File-Uploader2025/${fileName}`,
+      contents: fileBuffer,
+      mode: 'add',
+    });
+
+    console.log('File uploaded successfully');
+  } catch (error) {
+    if (error.error && error.error.error && error.error.error == 'expired_access_token') {
+      await refreshAccessToken();
+      await uploadToDropbox(filePath, fileName, fileBuffer);
+    } else {
+      console.error('Error uploading file:', error);
+    }
   }
-
-  function incrementTextFileCounter() {
-    const counter = getTextFileCounter() + 1;
-    fs.writeFileSync(counterFile, JSON.stringify({ counter }));
-    return counter;
-  }
-
-  app.use(express.static(__dirname));
-  
-  app.get('/', (req, res) => {
-    res.sendFile(__dirname + '/index.html');
-  });
-
-
-  const uploadToDropbox = async (filePath, fileName, fileBuffer) => {
-    try {
-      await dbx.filesUpload({
-        path: `/Apps/File-Uploader2025/${fileName}`,
-        contents: fileBuffer,
-        mode: 'add',
-      });
-
-      console.log('File uploaded successfully');
-    } catch (error) {
-      if (error.error && error.error.error && error.error.error == 'expired_access_token') {
-        await refreshAccessToken();
-        await uploadToDropbox(filePath, fileName, fileBuffer);
-      } else {
-        console.error('Error uploading file:', error);
-      }
-    }
-  };
-
-  const uploadTextToDropbox = async (textFileName, textBuffer) => {
-    try {
-      await dbx.filesUpload({
-        path: textFileName,
-        contents: textBuffer,
-        mode: 'add',
-      });
-
-      console.log('Text file uploaded successfully');
-    } catch (error) {
-      if (error.error && error.error.error && error.error.error == 'expired_access_token') {
-        await refreshAccessToken();
-        await uploadTextToDropbox(textFileName, textBuffer);
-      } else {
-        console.error('Error uploading text file:', error);
-      }
-    }
-  };
-
-  app.post('/upload', upload.any(), async (req, res) => {
-    try {
-      console.log(req.files);
-      console.log(req.body);
-
-      if (!req.files) {
-        res.status(400).send('No files uploaded');
-        return;
-      }
-
-      req.files.forEach(async (file) => {
-        try {
-          const fileBuffer = fs.readFileSync(file.path);
-          await uploadToDropbox(file.path, file.originalname, fileBuffer);
-          fs.unlinkSync(file.path); // Remove the temporary file
-        } catch (error) {
-          console.error('Error uploading file:', error);
-        }
-      });
-
-      let textFileCounter = getTextFileCounter();
-      const textKeys = Object.keys(req.body).filter(key => key.startsWith('text'));
-      for (let i = 0; i < textKeys.length; i++) {
-        const key = textKeys[i];
-        const textBuffer = Buffer.from(req.body[key], 'utf8');
-        const textFileName = textFileName = `/Apps/File-Uploader2025/text${textFileCounter}.txt`;
-        console.log(`Uploading text file: ${textFileName}`);
-
-        try {
-          await uploadTextToDropbox(textFileName, textBuffer);
-        } catch (error) {
-          console.error('Error uploading text file:', error);
-        }
-
-        textFileCounter++;
-      }
-      fs.writeFileSync(counterFile, JSON.stringify({ counter: textFileCounter }));
-
-      res.send(`Files and texts uploaded successfully!`);
-    } catch (error) {
-      console.error('Error uploading files or texts:', error);
-      res.status(500).send(`Error uploading files or texts.`);
-    }
-  });
 };
 
-const port = process.env.PORT || 3000;
+const uploadTextToDropbox = async (textFileName, textBuffer) => {
+  try {
+    await dbx.filesUpload({
+      path: textFileName,
+      contents: textBuffer,
+      mode: 'add',
+    });
+
+    console.log('Text file uploaded successfully');
+  } catch (error) {
+    if (error.error && error.error.error && error.error.error == 'expired_access_token') {
+      await refreshAccessToken();
+      await uploadTextToDropbox(textFileName, textBuffer);
+    } else {
+      console.error('Error uploading text file:', error);
+    }
+  }
+};
+
+app.use((req, res, next) => {
+  if (!accessToken && req.url !== '/login' && req.url !== '/callback' && req.url !== '/') {
+    res.redirect('/login');
+  } else {
+    next();
+  }
+});
+
 app.use(express.static(__dirname));
 app.get('/', (req, res) => {
   res.sendFile(__dirname + '/index.html');
 });
+
+app.post('/upload', upload.any(), async (req, res) => {
+  if (!accessToken) {
+    res.status(401).send('Access token not obtained');
+    return;
+  }
+  try {
+    console.log(req.files);
+    console.log(req.body);
+
+    if (!req.files) {
+      res.status(400).send('No files uploaded');
+      return;
+    }
+
+    req.files.forEach(async (file) => {
+      try {
+        const fileBuffer = fs.readFileSync(file.path);
+        await uploadToDropbox(file.path, file.originalname, fileBuffer);
+        fs.unlinkSync(file.path); // Remove the temporary file
+      } catch (error) {
+        console.error('Error uploading file:', error);
+      }
+    });
+
+    let textFileCounter = getTextFileCounter();
+    const textKeys = Object.keys(req.body).filter(key => key.startsWith('text'));
+    for (let i = 0; i < textKeys.length; i++) {
+      const key = textKeys[i];
+      const textBuffer = Buffer.from(req.body[key], 'utf8');
+      const textFileName = `/Apps/File-Uploader2025/text${textFileCounter}.txt`;
+      console.log(`Uploading text file: ${textFileName}`);
+
+      try {
+        await uploadTextToDropbox(textFileName, textBuffer);
+      } catch (error) {
+        console.error('Error uploading text file:', error);
+      }
+
+      textFileCounter++;
+    }
+    fs.writeFileSync(counterFile, JSON.stringify({ counter: textFileCounter }));
+
+    res.send(`Files and texts uploaded successfully!`);
+  } catch (error) {
+    console.error('Error uploading files or texts:', error);
+    res.status(500).send(`Error uploading files or texts.`);
+  }
+});
+
+const port = process.env.PORT || 3000;
 app.listen(port, () => {
   console.log(`Server listening on port ${port}`);
 });
