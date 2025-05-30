@@ -24,6 +24,8 @@ app.get('/login', (req, res) => {
   res.redirect(authorizationUrl);
 });
 
+app.use(express.static(__dirname));
+
 app.get('/callback', async (req, res) => {
   const code = req.query.code;
   console.log('Received request for /');
@@ -143,7 +145,6 @@ app.use((req, res, next) => {
   }
 });
 
-app.use(express.static(__dirname));
 app.get('/', (req, res) => {
   res.sendFile(__dirname + '/index.html');
 });
