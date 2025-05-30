@@ -13,7 +13,7 @@ const upload = multer({ dest: 'uploads/' });
 
 const MydropboxAppKey = '72k4rjgio5xik7f';
 const MydropboxAppSecret = '5qkialtd2pmpu4y';
-const redirectUri = 'http://localhost:3000/callback';
+const redirectUri = process.env.NODE_ENV === 'production' ? 'https://betauploaderapp.onrender.com/callback' : 'http://localhost:3000/callback';
 let accessToken = null;
 let refreshToken = null;
 let dbx = new Dropbox({});
@@ -108,6 +108,7 @@ const startServer = () => {
         res.end(data);
       }
     });
+    startServer();
   });
 
   app.use(express.static(__dirname));
@@ -195,7 +196,8 @@ const startServer = () => {
     }
   });
 
-  app.listen(3000, () => {
-    console.log('Server listening on port 3000');
+  const port = process.env.PORT || 3000;
+  app.listen(port, () => {
+    console.log(`Server listening on port ${port}`);
   });
 };
