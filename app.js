@@ -26,6 +26,7 @@ app.get('/login', (req, res) => {
 
 app.get('/callback', async (req, res) => {
   const code = req.query.code;
+  console.log('Received request for /');
   try {
     const response = await axios.post('https://api.dropboxapi.com/oauth2/token', {
       grant_type: 'authorization_code',
@@ -47,7 +48,8 @@ app.get('/callback', async (req, res) => {
     refreshToken = response.data.refresh_token;
     dbx = new Dropbox({ accessToken });
 
-    res.send('Access token obtained successfully!');
+    // res.sendFile(__dirname + '/index.html');
+    res.redirect('/');
   } catch (error) {
     console.error('Error exchanging authorization code:', error);
     res.status(500).send('Error exchanging authorization code');
@@ -147,6 +149,7 @@ app.get('/', (req, res) => {
 });
 
 app.post('/upload', upload.any(), async (req, res) => {
+  console.log('Received request for /upload');
   if (!accessToken) {
     res.status(401).send('Access token not obtained');
     return;
