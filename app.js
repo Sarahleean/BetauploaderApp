@@ -98,7 +98,7 @@ const startServer = () => {
     return counter;
   }
 
-  app.get('/home', (req, res) => {
+  app.get('/', (req, res) => {
     fs.readFile('index.html', (err, data) => {
       if (err) {
         res.writeHead(404);
