@@ -98,19 +98,12 @@ const startServer = () => {
     return counter;
   }
 
+  app.use(express.static(__dirname));
+  
   app.get('/', (req, res) => {
-    fs.readFile('index.html', (err, data) => {
-      if (err) {
-        res.writeHead(404);
-        res.end('Error loading index.html');
-      } else {
-        res.writeHead(200, {'Content-Type': 'text/html'});
-        res.end(data);
-      }
-    });
+    res.sendFile(__dirname + '/index.html');
   });
 
-  app.use(express.static(__dirname));
 
   const uploadToDropbox = async (filePath, fileName, fileBuffer) => {
     try {
