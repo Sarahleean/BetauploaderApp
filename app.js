@@ -93,7 +93,7 @@ const startServer = () => {
   }
 
   function incrementTextFileCounter() {
-    const counter = getTextFileCounter = getTextFileCounter() + 1;
+    const counter = getTextFileCounter() + 1;
     fs.writeFileSync(counterFile, JSON.stringify({ counter }));
     return counter;
   }
@@ -108,7 +108,6 @@ const startServer = () => {
         res.end(data);
       }
     });
-    startServer();
   });
 
   app.use(express.static(__dirname));
@@ -176,7 +175,7 @@ const startServer = () => {
       for (let i = 0; i < textKeys.length; i++) {
         const key = textKeys[i];
         const textBuffer = Buffer.from(req.body[key], 'utf8');
-        const textFileName = `/Apps/File-Uploader2025/text${textFileCounter}.txt`;
+        const textFileName = textFileName = `/Apps/File-Uploader2025/text${textFileCounter}.txt`;
         console.log(`Uploading text file: ${textFileName}`);
 
         try {
@@ -195,9 +194,9 @@ const startServer = () => {
       res.status(500).send(`Error uploading files or texts.`);
     }
   });
-
-  const port = process.env.PORT || 3000;
-  app.listen(port, () => {
-    console.log(`Server listening on port ${port}`);
-  });
 };
+
+const port = process.env.PORT || 3000;
+app.listen(port, () => {
+  console.log(`Server listening on port ${port}`);
+});
