@@ -13,30 +13,73 @@ const upload = multer({ dest: 'uploads/' });
 
 const MydropboxAppKey = '72k4rjgio5xik7f';
 const MydropboxAppSecret = '5qkialtd2pmpu4y';
+const redirectUri = 'http://localhost:3000/callback';
 let accessToken = null;
 let refreshToken = null;
 let dbx = new Dropbox({});
 
-axios.post('https://api.dropboxapi.com/oauth2/token', {
-  grant_type: 'authorization_code',
-  code: 'P6SxvwI4BIUAAAAAAAAAMnJateorzMd-Lk_pLfqMpY8',
-  client_id: MydropboxAppKey,
-  client_secret: MydropboxAppSecret,
-}, {
-  headers: {
-    'Content-Type': 'application/x-www-form-urlencoded',
-  },
-  transformRequest: [(data) => {
-    return Object.keys(data).map((key) => {
-      return `${key}=${data[key]}`;
-    }).join('&');
-  }],
-})
-.then((response) => {
-  accessToken = response.data.access_token;
-  refreshToken = response.data.refresh_token;
-  dbx = new Dropbox({ accessToken });
+app.get('/login', (req, res) => {
+  const authorizationUrl = `https://www.dropbox.com/oauth2/authorize?client_id=${MydropboxAppKey}&response_type=code&redirect_uri=${redirectUri}`;
+  res.redirect(authorizationUrl);
+});
 
+app.get('/callback', async (req, res) => {
+  const code = req.query.code;
+  try {
+    const response = await axios.post('https://api.dropboxapi.com/oauth2/token', {
+      grant_type: 'authorization_code',
+      code,
+      client_id: MydropboxAppKey,
+      client_secret: MydropboxAppSecret,
+    }, {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      transformRequest: [(data) => {
+        return Object.keys(data).map((key) => {
+          return `${key}=${data[key]}`;
+        }).join('&');
+      }],
+    });
+
+    accessToken = response.data.access_token;
+    refreshToken = response.data.refresh_token;
+    dbx = new Dropbox({ accessToken });
+
+    res.send('Access token obtained successfully!');
+    startServer();
+  } catch (error) {
+    console.error('Error exchanging authorization code:', error);
+    res.status(500).send('Error exchanging authorization code');
+  }
+});
+
+const refreshAccessToken = async () => {
+  try {
+    const response = await axios.post('https://api.dropboxapi.com/oauth2/token', {
+      grant_type: 'refresh_token',
+      refresh_token: refreshToken,
+      client_id: MydropboxAppKey,
+      client_secret: MydropboxAppSecret,
+    }, {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      transformRequest: [(data) => {
+        return Object.keys(data).map((key) => {
+          return `${key}=${data[key]}`;
+        }).join('&');
+      }],
+    });
+
+    accessToken = response.data.access_token;
+    dbx = new Dropbox({ accessToken });
+  } catch (error) {
+    console.error('Error refreshing access token:', error);
+  }
+};
+
+const startServer = () => {
   const counterFile = 'textFileCounter.json';
 
   // Initialize the counter
@@ -50,7 +93,7 @@ axios.post('https://api.dropboxapi.com/oauth2/token', {
   }
 
   function incrementTextFileCounter() {
-    const counter = getTextFileCounter() + 1;
+    const counter = getTextFileCounter = getTextFileCounter() + 1;
     fs.writeFileSync(counterFile, JSON.stringify({ counter }));
     return counter;
   }
@@ -69,6 +112,44 @@ axios.post('https://api.dropboxapi.com/oauth2/token', {
 
   app.use(express.static(__dirname));
 
+  const uploadToDropbox = async (filePath, fileName, fileBuffer) => {
+    try {
+      await dbx.filesUpload({
+        path: `/Apps/File-Uploader2025/${fileName}`,
+        contents: fileBuffer,
+        mode: 'add',
+      });
+
+      console.log('File uploaded successfully');
+    } catch (error) {
+      if (error.error && error.error.error && error.error.error == 'expired_access_token') {
+        await refreshAccessToken();
+        await uploadToDropbox(filePath, fileName, fileBuffer);
+      } else {
+        console.error('Error uploading file:', error);
+      }
+    }
+  };
+
+  const uploadTextToDropbox = async (textFileName, textBuffer) => {
+    try {
+      await dbx.filesUpload({
+        path: textFileName,
+        contents: textBuffer,
+        mode: 'add',
+      });
+
+      console.log('Text file uploaded successfully');
+    } catch (error) {
+      if (error.error && error.error.error && error.error.error == 'expired_access_token') {
+        await refreshAccessToken();
+        await uploadTextToDropbox(textFileName, textBuffer);
+      } else {
+        console.error('Error uploading text file:', error);
+      }
+    }
+  };
+
   app.post('/upload', upload.any(), async (req, res) => {
     try {
       console.log(req.files);
@@ -82,41 +163,10 @@ axios.post('https://api.dropboxapi.com/oauth2/token', {
       req.files.forEach(async (file) => {
         try {
           const fileBuffer = fs.readFileSync(file.path);
-          await dbx.filesUpload({
-            path: `/Apps/File-Uploader2025/${file.originalname}`,
-            contents: fileBuffer,
-            mode: 'add',
-          });
-
-          console.log('File uploaded successfully');
+          await uploadToDropbox(file.path, file.originalname, fileBuffer);
           fs.unlinkSync(file.path); // Remove the temporary file
         } catch (error) {
           console.error('Error uploading file:', error);
-          if (error.error && error.error.error && error.error.error == 'expired_access_token') {
-            // Refresh the access token
-            axios.post('https://api.dropboxapi.com/oauth2/token', {
-              grant_type: 'refresh_token',
-              refresh_token: refreshToken,
-              client_id: MydropboxAppKey,
-              client_secret: MydropboxAppSecret,
-            }, {
-              headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-              },
-              transformRequest: [(data) => {
-                return Object.keys(data).map((key) => {
-                  return `${key}=${data[key]}`;
-                }).join('&');
-              }],
-            })
-            .then((response) => {
-              accessToken = response.data.access_token;
-              dbx = new Dropbox({ accessToken });
-            })
-            .catch((error) => {
-              console.error('Error refreshing access token:', error);
-            });
-          }
         }
       });
 
@@ -129,13 +179,7 @@ axios.post('https://api.dropboxapi.com/oauth2/token', {
         console.log(`Uploading text file: ${textFileName}`);
 
         try {
-          await dbx.filesUpload({
-            path: textFileName,
-            contents: textBuffer,
-            mode: 'add',
-          });
-
-          console.log('Text file uploaded successfully');
+          await uploadTextToDropbox(textFileName, textBuffer);
         } catch (error) {
           console.error('Error uploading text file:', error);
         }
@@ -154,7 +198,4 @@ axios.post('https://api.dropboxapi.com/oauth2/token', {
   app.listen(3000, () => {
     console.log('Server listening on port 3000');
   });
-})
-.catch((error) => {
-  console.error('Error exchanging authorization code:', error);
-});
+};
